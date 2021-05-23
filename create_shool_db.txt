@@ -1,0 +1,373 @@
+DROP DATABASE shool_demo;
+CREATE DATABASE shool_demo;
+USE shool_demo;
+
+
+DROP TABLE IF EXISTS classes;
+CREATE TABLE classes (
+  class_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  class VARCHAR(20) DEFAULT '1' COMMENT "Класс",
+  letter CHAR(2) COMMENT "Литер класса",
+  school_year INT UNSIGNED NOT NULL COMMENT "Ссылка на учебный год",
+  teacher_id INT UNSIGNED NOT NULL COMMENT "Ссылка на учителя, классного руководителя",
+  UNIQUE KEY class (class,letter,school_year)
+) COMMENT "Класс";
+
+SELECT * FROM classes;
+
+CREATE TEMPORARY TABLE word(name VARCHAR(50));
+
+INSERT INTO word VALUES
+  ('А'),
+  ('Б'),
+  ('В'),
+  ('Г');
+ 
+ UPDATE classes SET letter = (SELECT name FROM word ORDER BY RAND() LIMIT 1);
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS disciplines;
+CREATE TABLE disciplines (
+  discipline_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  discipline VARCHAR(150) COMMENT "Наименование предмета"
+) COMMENT "Предмет (дисциплина)";
+
+SELECT * FROM disciplines d ;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS itog_grades;
+CREATE TABLE itog_grades (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  student_id INT UNSIGNED NOT NULL COMMENT "Ссылка на ученика",
+  discipline_id INT UNSIGNED NOT NULL COMMENT "Ссылка на предмет",
+  grade VARCHAR(10) COMMENT "Оценка",
+  teacher_id INT UNSIGNED NOT NULL COMMENT "Ссылка на учителя, поставившего оценку"
+) COMMENT "Итоговые оценки";
+
+SELECT * FROM itog_grades ig;
+
+ALTER TABLE itog_grades 
+  ADD CONSTRAINT itog_grades_student_id_fk 
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
+      ON DELETE CASCADE,
+ADD CONSTRAINT itog_grades_discipline_id_fk 
+    FOREIGN KEY (discipline_id) REFERENCES disciplines(discipline_id)
+      ON DELETE CASCADE,
+ADD CONSTRAINT itog_grades_teacher_id_fk 
+    FOREIGN KEY (teacher_id) REFERENCES teachers(teacher_id)
+      ON DELETE CASCADE;
+
+-- +++++++++++++++++++++++++++++++++++++++++++++++++++
+     
+DROP TABLE IF EXISTS lessons;
+CREATE TABLE lessons (
+  lesson_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  lesson_DATE DATE COMMENT "Дата урока",
+  subject_id INT UNSIGNED NOT NULL COMMENT "Ссылка на объект урока",
+  topic VARCHAR(255) COMMENT "Тема урока",
+  dz VARCHAR(100) COMMENT "Домашнее задание",
+  active BOOL COMMENT "Статус активности",
+  schedule_id INT UNSIGNED NOT NULL COMMENT "Ссылка на расписание",
+  file VARCHAR(64) DEFAULT '0' COMMENT "Файлы",
+  DATE_dz DATETIME DEFAULT NULL COMMENT "",
+  DATE_sched DATETIME DEFAULT NULL COMMENT ""
+) COMMENT "Урок";
+
+SELECT * FROM lessons;
+
+ALTER TABLE lessons
+  ADD CONSTRAINT lessons_subject_id_fk 
+    FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
+      ON DELETE CASCADE,
+ADD CONSTRAINT lessons_schedule_id_fk 
+    FOREIGN KEY (schedule_id) REFERENCES schedule(id_schedule)
+      ON DELETE CASCADE;
+     
+CREATE TEMPORARY TABLE extensions (name VARCHAR(10));
+
+INSERT INTO extensions VALUES ('jpeg'), ('mp4'), ('mp3'), ('avi'), ('png');
+
+SELECT * FROM extensions;
+
+-- Обновляем ссылку на файл
+UPDATE lessons SET file = CONCAT(
+  'http://dropbox.net/lessons',
+  '.',
+  (SELECT name FROM extensions ORDER BY RAND() LIMIT 1)
+);  
+
+UPDATE lessons SET DATE_sched = NOW() WHERE DATE_dz > DATE_sched; 
+
+-- +++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS parents;
+CREATE TABLE parents (
+  parent_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  last_name VARCHAR(25) DEFAULT NULL COMMENT "Имя",
+  first_name VARCHAR(25) DEFAULT NULL COMMENT "Фамилия",
+  middle_name VARCHAR(25) DEFAULT NULL COMMENT "Полное имя",
+  login VARCHAR(32) DEFAULT NULL COMMENT "Логин",
+  password VARCHAR(32) DEFAULT NULL COMMENT "Пароль",
+  relative_id INT UNSIGNED DEFAULT NULL COMMENT "Ссылка на идентификатор родства",
+  address VARCHAR(255) DEFAULT NULL COMMENT "Адрес",
+  phone VARCHAR(25) DEFAULT NULL COMMENT "Телефон",
+  work_phone VARCHAR(25) DEFAULT NULL COMMENT "Рабочий телефон",
+  email VARCHAR(25) DEFAULT NULL COMMENT "Почта"
+) COMMENT "Родители";
+
+SELECT * FROM parents;
+
+
+ALTER TABLE parents
+  ADD CONSTRAINT parents_relative_id_fk 
+    FOREIGN KEY (relative_id) REFERENCES relatives(relative_id)
+      ON DELETE CASCADE;
+     
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+DROP TABLE IF EXISTS quarter_type;
+CREATE TABLE quarter_type (
+	type_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+	type_name VARCHAR(50) COMMENT "Тип четверти"
+)
+
+INSERT INTO quarter_type (type_name)
+	VALUES 
+	('Экзаменационная'),
+	('Проверочная'),
+	('Обучение'),
+	('Аттестационная');
+SELECT  * FROM quarter_type;
+
+-- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS quarters;
+CREATE TABLE quarters (
+  quarter_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  school_year_id INT UNSIGNED NOT NULL COMMENT "Ссылка на учебный год",
+  quarter_name VARCHAR(50) COMMENT "Четверть",
+  type_id INT UNSIGNED NOT NULL DEFAULT '1' COMMENT "Ссылка на тип четверти",
+  started DATE COMMENT "Начало учебной четверти",
+  finished DATE COMMENT "Конец четверти",
+  KEY type_quarter (quarter_type)
+) COMMENT "Учебные четверти";
+
+SELECT * FROM quarters;
+
+
+ALTER TABLE quarters
+  ADD CONSTRAINT quarters_type_id_fk 
+    FOREIGN KEY (type_id) REFERENCES quarter_type(type_id)
+      ON DELETE CASCADE;
+     
+UPDATE quarters SET finished = NOW() WHERE finished < started; 
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS relatives;
+CREATE TABLE relatives (
+  relative_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  relative VARCHAR(16) COMMENT "Уровень родства"
+) COMMENT "Родство";
+
+SELECT * FROM relatives r ;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS schedule;
+CREATE TABLE schedule (
+  id_schedule INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  school_year INT UNSIGNED NOT NULL COMMENT "Ссылка на Учебный год",
+  quarter_id INT UNSIGNED NOT NULL COMMENT "Ссылка на четверть (100)",
+  discipline_id INT UNSIGNED NOT NULL COMMENT "Ссылка на предмет (50)",
+  class_id INT UNSIGNED NOT NULL COMMENT "Ссылка на класс 100",
+  cabinet VARCHAR(30) COMMENT "Кабинет",
+  teacher_id INT UNSIGNED NOT NULL COMMENT "Ссылка на преподавателя",
+  started DATETIME DEFAULT NULL COMMENT "Начало"
+  finished DATETIME DEFAULT NULL COMMENT "Окончание"
+) COMMENT "Расписание уроков";
+
+SELECT * FROM schedule s ;
+DESC schedule ;
+
+ UPDATE schedule SET school_year = RAND()*100;
+ UPDATE schedule SET class_id = RAND()*100;
+
+ALTER TABLE schedule
+  ADD CONSTRAINT schedule_school_year_fk 
+    FOREIGN KEY (school_year) REFERENCES school_years(school_year_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT schedule_discipline_id_fk 
+    FOREIGN KEY (discipline_id) REFERENCES disciplines(discipline_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT schedule_teacher_id_fk 
+    FOREIGN KEY (teacher_id) REFERENCES teachers(teacher_id)
+      ON DELETE CASCADE,     
+  ADD CONSTRAINT schedule_quarter_id_id_fk 
+    FOREIGN KEY (quarter_id) REFERENCES quarters(quarter_id)
+      ON DELETE CASCADE;
+ALTER TABLE schedule
+  ADD CONSTRAINT schedule6_class_id_fk 
+    FOREIGN KEY (class_id) REFERENCES classes(class_id)
+      ON DELETE CASCADE;
+
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS school_years;
+CREATE TABLE school_years (
+  school_year_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  name_year VARCHAR(50) COMMENT "Наименование учебного года",
+  started DATE COMMENT "Начало учебного года",
+  finished DATE COMMENT "Конец учебного года"
+) COMMENT "Учебный год";
+
+SELECT * FROM school_years sy ;
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS students;
+CREATE TABLE students (
+  student_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  last_name VARCHAR(25) COMMENT "Имя",
+  first_name VARCHAR(25) COMMENT "Фамилия",
+  middle_name VARCHAR(25) COMMENT "Отчество",
+  login VARCHAR(255) COMMENT "Логин",
+  password VARCHAR(255) COMMENT "Пароль",
+  birthday DATE COMMENT "Дата рождения",
+  address VARCHAR(255) COMMENT "Адрес",
+  phone VARCHAR(25) COMMENT "Телефон",
+  mother_fio VARCHAR(50) COMMENT "Мать",
+  mother_work_phone VARCHAR(25) COMMENT "Рабочий телефон матери",
+  mother_cell_phone VARCHAR(25) COMMENT "Сотовый телефон матери",
+  father_fio VARCHAR(50) COMMENT "Отец",
+  father_work_phone VARCHAR(25) COMMENT "Рабочий телефон отца",
+  father_cell_phone VARCHAR(25) COMMENT "Сотовый телефон отца",
+  email VARCHAR(25) COMMENT "Почта",
+  mother_email VARCHAR(25) COMMENT "Почта матери",
+  father_email VARCHAR(25) COMMENT "Почта отца",
+  photo VARCHAR(50) DEFAULT NULL COMMENT "Фото"
+) COMMENT "Ученики";
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS students_in_class;
+CREATE TABLE students_in_class (
+  class_id INT UNSIGNED NOT NULL COMMENT "Ссылка на класс",
+  student_id INT UNSIGNED NOT NULL COMMENT "Ссылка на студента",
+  PRIMARY KEY class_id (class_id,student_id)  COMMENT "Составной первичный ключ"
+) COMMENT "Ученики в классе";
+
+SELECT * FROM students_in_class sic ;
+-- SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE students_in_class
+  ADD CONSTRAINT students_in_class_class_id_fk 
+    FOREIGN KEY (class_id) REFERENCES classes(class_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT students_in_class_student_id_fk 
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
+      ON DELETE CASCADE;
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS students_in_parent;
+CREATE TABLE students_in_parent (
+  studparent_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  parent_id INT UNSIGNED NOT NULL COMMENT "Ссылка на таблицу родителей",
+  student_id INT UNSIGNED NOT NULL COMMENT "ССылка на таблицу учеников",
+  relative_id INT UNSIGNED NOT NULL DEFAULT '1' COMMENT "Ссылка на таблицу родства",
+  UNIQUE KEY studparent_id_2 (studparent_id),
+  KEY studparent_id (studparent_id),
+  KEY relative_id (relative_id)
+) COMMENT "Родители ученика";
+
+ALTER TABLE students_in_parent
+  ADD CONSTRAINT students_in_parent_parent_idfk 
+    FOREIGN KEY (parent_id) REFERENCES parents(parent_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT students_in_parent_student_idfk 
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT students_in_parent_relative_id_fk 
+    FOREIGN KEY (relative_id) REFERENCES relatives(relative_id)
+      ON DELETE CASCADE;
+
+
+SELECT * FROM students_in_parent ;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS students_on_lesson;
+CREATE TABLE students_on_lesson (
+  studless_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  student_id INT UNSIGNED NOT NULL COMMENT "Ссылка на таблицу учеников",
+  lesson_id INT UNSIGNED NOT NULL COMMENT "Ссылка на таблицу уроков",
+  grade CHAR(3) COMMENT "Оценка",
+  behavior INT UNSIGNED DEFAULT NULL COMMENT "Поведение",
+  quater VARCHAR(255) COMMENT "Четверть",
+  subject_id INT UNSIGNED COMMENT "Ссылка на таблицу subjects Какой урок, кто преподаватель, какой класс",
+  DATE_grade DATETIME DEFAULT NULL COMMENT "Дата оценки",
+  DATE_note DATETIME DEFAULT NULL COMMENT "Дата замечания",
+  note TEXT COMMENT "Текст замечания"
+) COMMENT "Ученик на уроке";
+
+
+ALTER TABLE students_on_lesson
+  ADD CONSTRAINT students_on_lesson_lesson_id_fk 
+    FOREIGN KEY (lesson_id) REFERENCES lessons(lesson_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT students_on_lesson_student_id_fk 
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT students_on_lesson_subj_id_fk 
+    FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
+      ON DELETE CASCADE;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS subjects;
+CREATE TABLE subjects (
+  subject_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  discipline_id INT UNSIGNED NOT NULL COMMENT "Ссылка на наименование предмета",
+  teacher_id INT UNSIGNED NOT NULL COMMENT "Ссылка на учителя",
+  class_id INT UNSIGNED NOT NULL COMMENT "Ссылка на класс"
+) COMMENT "Проведение урока"+;
+
+ALTER TABLE subjects
+  ADD CONSTRAINT subjects_discipline_id_fk 
+    FOREIGN KEY (discipline_id) REFERENCES disciplines(discipline_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT subjects_teacher_id_fk 
+    FOREIGN KEY (teacher_id) REFERENCES teachers(teacher_id)
+      ON DELETE CASCADE,
+  ADD CONSTRAINT subjects_class_id_fk 
+    FOREIGN KEY (class_id) REFERENCES classes(class_id)
+      ON DELETE CASCADE;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+DROP TABLE IF EXISTS teachers;
+CREATE TABLE teachers (
+  teacher_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT "Идентификатор строки",
+  login VARCHAR(25) COMMENT "Логин",
+  passwd VARCHAR(32) COMMENT "Пароль",
+  email VARCHAR(25) COMMENT "Почта",
+  first_name VARCHAR(25) COMMENT "Имя",
+  middle_name VARCHAR(25) COMMENT "Отчество",
+  last_name VARCHAR(25) COMMENT "Фамилия",
+  photo VARCHAR(50) COMMENT "Фото",
+  director INT UNSIGNED NOT NULL DEFAULT '0' COMMENT "Признак директора"
+) COMMENT "Учитель";
+
+SELECT * FROM teachers;
+UPDATE teachers 
+	SET director = 0;
+
+UPDATE teachers 
+	SET director = 1
+WHERE teacher_id  = 1;
+
+-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
